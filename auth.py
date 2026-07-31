@@ -12,6 +12,9 @@ SCOPES = [
 def get_credentials() -> Credentials:
 	"""
 	Get the user's credentials for accessing Google services.
+
+	Returns:
+		A Credentials object containing the user's access and refresh tokens.
 	"""
 	creds = None
 	# The file token.json stores the user's access and refresh tokens, and is
