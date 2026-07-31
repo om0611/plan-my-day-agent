@@ -1,4 +1,10 @@
-.venv/
+# Google OAuth
 credentials.json
 token.json
+
+.venv/
 .env
+__pycache__/
+
+# Experimental files
+scratch/
