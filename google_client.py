@@ -9,10 +9,15 @@ def build_calendar_service(creds: Credentials) -> Any:
 
     Returns:
         A Resource object with methods for interacting with the 
-        Google Calendar API.
+        Google Calendar API. None if an error occured.
     """
-    service = build("calendar", "v3", credentials=creds)
-    return service
+    try:
+        service = build("calendar", "v3", credentials=creds)
+        return service
+    except Exception as e:
+        print(f"An error occurred while building the calendar service: {e}")
+        return None
+    
 
 
 def create_event(
