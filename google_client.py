@@ -27,7 +27,7 @@ def create_event(
     end_time: str,
     timezone: str = "America/Toronto",
     calendar_id: str = "primary",
-) -> None:
+) -> str:
     """
     Create a new event in the specified Google Calendar.
 
@@ -38,6 +38,9 @@ def create_event(
         end_time: The end time of the event in RFC3339 format.
         timezone: The timezone for the event (default is "America/Toronto").
         calendar_id: The ID of the calendar to create the event in (default is "primary").
+    
+    Returns:
+        The ID of the created event if successful, None otherwise.
     """
     body = {
         "summary": title,
@@ -45,7 +48,9 @@ def create_event(
         "end": {"dateTime": end_time, "timeZone": timezone},
     }
     try:
-        service.events().insert(calendarId=calendar_id, body=body).execute()
+        response = service.events().insert(calendarId=calendar_id, body=body).execute()
         print("Event created successfully.")
+        return response.get("id")
     except Exception as e:
         print(f"An error occurred while creating the event: {e}")
+        return None
