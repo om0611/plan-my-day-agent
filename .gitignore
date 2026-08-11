@@ -8,3 +8,6 @@ __pycache__/
 
 # Experimental files
 scratch/
+
+# Ruff
+.ruff_cache/
