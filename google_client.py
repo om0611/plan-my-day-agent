@@ -29,7 +29,7 @@ def create_event(
     reminder_mins: int = 5,
     reminder_method: str = "popup",
     calendar_id: str = "primary",
-) -> str:
+) -> str | None:
     """
     Create a new event in the specified Google Calendar.
 
@@ -62,6 +62,7 @@ def create_event(
         response = service.events().insert(calendarId=calendar_id, body=body).execute()
         print("Event created successfully.")
         return response.get("id")
+
     except Exception as e:
         print(f"An error occurred while creating the event: {e}")
         return None
@@ -84,6 +85,7 @@ def delete_event(
     try:
         service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
         print("Event deleted successfully.")
+
     except Exception as e:
         print(f"An error occurred while deleting the event: {e}")
 
@@ -144,5 +146,62 @@ def update_event(
             calendarId=calendar_id, eventId=event_id, body=body
         ).execute()
         print("Event updated successfully.")
+
     except Exception as e:
         print(f"An error occurred while updating the event: {e}")
+
+
+def list_events(
+    service: Any,
+    timeMax: str,
+    timeMin: str,
+    calendar_id: str = "primary",
+) -> list:
+    """
+    List events from the specified Google Calendar within the given time range.
+
+    Args:
+        service: The Google Calendar API service object.
+        timeMax: The maximum time for the event (in RFC3339 format).
+        timeMin: The minimum time for the event (in RFC3339 format).
+        calendar_id: The ID of the calendar to list events from (default "primary").
+
+    Returns:
+        A list of events from the specified calendar.
+    """
+    try:
+        response = service.events().list(
+            calendarId=calendar_id,
+            timeMin=timeMin,
+            timeMax=timeMax,
+            singleEvents=True,
+            orderBy="startTime",
+        ).execute()
+
+        events = response.get("items")
+        if not events:
+            print("No events found.")
+            return []
+
+        output_events = []
+
+        for event in events:
+            title = event.get("summary")
+            start_time = event.get("start")
+            end_time = event.get("end")
+            event_id = event.get("id")
+
+            output_events.append(
+                {
+                    "title": title,
+                    "start_time": start_time,
+                    "end_time": end_time,
+                    "event_id": event_id,
+                }
+            )
+
+        return output_events
+
+    except Exception as e:
+        print(f"An error occurred while listing events: {e}")
+        return []
