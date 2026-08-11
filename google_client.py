@@ -3,12 +3,13 @@ from typing import Any
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
+
 def build_calendar_service(creds: Credentials) -> Any:
     """
     Build and return a Google Calendar API resource object.
 
     Returns:
-        A Resource object with methods for interacting with the 
+        A Resource object with methods for interacting with the
         Google Calendar API. None if an error occured.
     """
     try:
@@ -17,11 +18,10 @@ def build_calendar_service(creds: Credentials) -> Any:
     except Exception as e:
         print(f"An error occurred while building the calendar service: {e}")
         return None
-    
 
 
 def create_event(
-    service: Any, 
+    service: Any,
     title: str,
     start_time: str,
     end_time: str,
@@ -39,10 +39,12 @@ def create_event(
         start_time: The start time of the event in RFC3339 format.
         end_time: The end time of the event in RFC3339 format.
         timezone: The timezone for the event (default is "America/Toronto").
-        reminder_mins: The number of minutes before the event to send a reminder (default is 5).
+        reminder_mins: The number of minutes before the event to send a reminder
+            (default is 5).
         reminder_method: The method to use for the reminder (default is "popup").
-        calendar_id: The ID of the calendar to create the event in (default is "primary").
-    
+        calendar_id: The ID of the calendar to create the event in (default is
+            "primary").
+
     Returns:
         The ID of the created event if successful, None otherwise.
     """
@@ -62,4 +64,3 @@ def create_event(
     except Exception as e:
         print(f"An error occurred while creating the event: {e}")
         return None
-

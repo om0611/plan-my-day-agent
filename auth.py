@@ -7,8 +7,9 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = [
-    "https://www.googleapis.com/auth/calendar",		# Read and write access
+    "https://www.googleapis.com/auth/calendar",  # Read and write access
 ]
+
 
 def get_credentials() -> Credentials:
     """
@@ -31,9 +32,7 @@ def get_credentials() -> Credentials:
             except RefreshError:
                 creds = None
         if not creds:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                "credentials.json", SCOPES
-            )
+            flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
         # Save the credentials for the next run
         with open("token.json", "w") as token:
