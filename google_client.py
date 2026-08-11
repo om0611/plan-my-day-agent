@@ -64,3 +64,24 @@ def create_event(
     except Exception as e:
         print(f"An error occurred while creating the event: {e}")
         return None
+
+
+def delete_event(
+    service: Any,
+    event_id: str,
+    calendar_id: str = "primary",
+) -> None:
+    """
+    Delete an event from the specified Google Calendar.
+
+    Args:
+        service: The Google Calendar API service object.
+        event_id: The ID of the event to delete.
+        calendar_id: The ID of the calendar to delete the event from (default is
+            "primary").
+    """
+    try:
+        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+        print("Event deleted successfully.")
+    except Exception as e:
+        print(f"An error occurred while deleting the event: {e}")
