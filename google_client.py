@@ -4,20 +4,21 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 
-def build_calendar_service(creds: Credentials) -> Any:
+def build_calendar_service(creds: Credentials) -> tuple[Any | None, str | None]:
     """
     Build and return a Google Calendar API resource object.
 
     Returns:
-        A Resource object with methods for interacting with the
-        Google Calendar API. None if an error occured.
+        - A Resource object with methods for interacting with the
+            Google Calendar API. None if an error occured.
+        - An error message if an error occured. None otherwise.
     """
     try:
         service = build("calendar", "v3", credentials=creds)
-        return service
+        return service, None
     except Exception as e:
         print(f"An error occurred while building the calendar service: {e}")
-        return None
+        return None, str(e)
 
 
 def create_event(
@@ -29,7 +30,7 @@ def create_event(
     reminder_mins: int = 5,
     reminder_method: str = "popup",
     calendar_id: str = "primary",
-) -> str | None:
+) -> tuple[str | None, str | None]:
     """
     Create a new event in the specified Google Calendar.
 
@@ -47,7 +48,8 @@ def create_event(
             "primary").
 
     Returns:
-        The ID of the created event if successful, None otherwise.
+        - The ID of the created event if successful. None otherwise.
+        - An error message if an error occured. None otherwise.
     """
     body = {
         "summary": title,
@@ -61,18 +63,18 @@ def create_event(
     try:
         response = service.events().insert(calendarId=calendar_id, body=body).execute()
         print("Event created successfully.")
-        return response.get("id")
+        return response.get("id"), None
 
     except Exception as e:
         print(f"An error occurred while creating the event: {e}")
-        return None
+        return None, str(e)
 
 
 def delete_event(
     service: Any,
     event_id: str,
     calendar_id: str = "primary",
-) -> None:
+) -> str | None:
     """
     Delete an event from the specified Google Calendar.
 
@@ -81,13 +83,18 @@ def delete_event(
         event_id: The ID of the event to delete.
         calendar_id: The ID of the calendar to delete the event from (default is
             "primary").
+
+    Returns:
+        - An error message if an error occured. None otherwise.
     """
     try:
         service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
         print("Event deleted successfully.")
+        return None
 
     except Exception as e:
         print(f"An error occurred while deleting the event: {e}")
+        return str(e)
 
 
 def update_event(
@@ -100,7 +107,7 @@ def update_event(
     reminder_mins: int | None = None,
     reminder_method: str | None = None,
     calendar_id: str = "primary",
-) -> None:
+) -> str | None:
     """
     Update an existing event in the specified Google Calendar with partial fields.
 
@@ -114,6 +121,9 @@ def update_event(
         reminder_mins: Optional reminder lead time in minutes.
         reminder_method: Optional reminder method (e.g. "popup", "email").
         calendar_id: The ID of the calendar containing the event (default "primary").
+
+    Returns:
+        - An error message if an error occured. None otherwise.
     """
     body: dict[str, Any] = {}
 
@@ -139,16 +149,18 @@ def update_event(
 
     if not body:
         print("No fields provided to update.")
-        return
+        return None
 
     try:
         service.events().patch(
             calendarId=calendar_id, eventId=event_id, body=body
         ).execute()
         print("Event updated successfully.")
+        return None
 
     except Exception as e:
         print(f"An error occurred while updating the event: {e}")
+        return str(e)
 
 
 def list_events(
@@ -156,7 +168,7 @@ def list_events(
     timeMax: str,
     timeMin: str,
     calendar_id: str = "primary",
-) -> list:
+) -> tuple[list[dict[str, Any]] | None, str | None]:
     """
     List events from the specified Google Calendar within the given time range.
 
@@ -167,7 +179,8 @@ def list_events(
         calendar_id: The ID of the calendar to list events from (default "primary").
 
     Returns:
-        A list of events from the specified calendar.
+        - A list of events from the specified calendar. None if an error occured.
+        - An error message if an error occured. None otherwise.
     """
     try:
         response = service.events().list(
@@ -181,7 +194,7 @@ def list_events(
         events = response.get("items")
         if not events:
             print("No events found.")
-            return []
+            return [], None
 
         output_events = []
 
@@ -200,8 +213,8 @@ def list_events(
                 }
             )
 
-        return output_events
+        return output_events, None
 
     except Exception as e:
         print(f"An error occurred while listing events: {e}")
-        return []
+        return None, str(e)
