@@ -163,6 +163,40 @@ def update_event(
         return str(e)
 
 
+def get_event(
+    service: Any,
+    event_id: str,
+    calendar_id: str = "primary",
+) -> tuple[dict[str, Any] | None, str | None]:
+    """
+    Get details of the specified event from the specified Google Calendar.
+
+    Args:
+        service: The Google Calendar API service object.
+        event_id: The ID of the event to get details of.
+        calendar_id: The ID of the calendar containing the event (default "primary").
+
+    Returns:
+        - The event details as a dictionary if found. None otherwise.
+        - An error message if an error occured. None otherwise.
+    """
+    try:
+        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
+        
+        event_details = {
+            "title": event.get("summary"),
+            "start_time": event.get("start"),
+            "end_time": event.get("end"),
+            "event_id": event.get("id"),
+        }
+
+        return event_details, None
+
+    except Exception as e:
+        print(f"An error occurred while getting the event details: {e}")
+        return None, str(e)
+
+
 def list_events(
     service: Any,
     timeMax: str,
