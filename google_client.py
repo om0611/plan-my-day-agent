@@ -26,7 +26,6 @@ def create_event(
     title: str,
     start_time: str,
     end_time: str,
-    timezone: str = "America/Toronto",
     reminder_mins: int = 5,
     reminder_method: str = "popup",
     calendar_id: str = "primary",
@@ -39,7 +38,6 @@ def create_event(
         title: The title of the event.
         start_time: The start time of the event in RFC3339 format.
         end_time: The end time of the event in RFC3339 format.
-        timezone: The timezone for the event (default is "America/Toronto").
         reminder_mins: The number of minutes before the event to send a reminder
             (default is 5).
         reminder_method: The method to use for the reminder (default is "popup").
@@ -53,8 +51,8 @@ def create_event(
     """
     body = {
         "summary": title,
-        "start": {"dateTime": start_time, "timeZone": timezone},
-        "end": {"dateTime": end_time, "timeZone": timezone},
+        "start": {"dateTime": start_time},
+        "end": {"dateTime": end_time},
         "reminders": {
             "useDefault": False,
             "overrides": [{"method": reminder_method, "minutes": reminder_mins}],
@@ -103,7 +101,6 @@ def update_event(
     title: str | None = None,
     start_time: str | None = None,
     end_time: str | None = None,
-    timezone: str = "America/Toronto",
     reminder_mins: int | None = None,
     reminder_method: str | None = None,
     calendar_id: str = "primary",
@@ -117,7 +114,6 @@ def update_event(
         title: Optional new title for the event.
         start_time: Optional new start time in RFC3339 format.
         end_time: Optional new end time in RFC3339 format.
-        timezone: Timezone for start/end times (default "America/Toronto").
         reminder_mins: Optional reminder lead time in minutes.
         reminder_method: Optional reminder method (e.g. "popup", "email").
         calendar_id: The ID of the calendar containing the event (default "primary").
@@ -131,10 +127,10 @@ def update_event(
         body["summary"] = title
 
     if start_time is not None:
-        body["start"] = {"dateTime": start_time, "timeZone": timezone}
+        body["start"] = {"dateTime": start_time}
 
     if end_time is not None:
-        body["end"] = {"dateTime": end_time, "timeZone": timezone}
+        body["end"] = {"dateTime": end_time}
 
     if reminder_mins is not None or reminder_method is not None:
         body["reminders"] = {
