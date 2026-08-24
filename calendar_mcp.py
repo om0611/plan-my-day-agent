@@ -8,6 +8,8 @@ from fastmcp.server.lifespan import lifespan
 from auth import get_credentials
 from google_client import (
     build_calendar_service,
+    create_event as gc_create_event,
+    delete_event as gc_delete_event,
     get_event as gc_get_event,
     list_events as gc_list_events,
     update_event as gc_update_event,
@@ -140,6 +142,129 @@ def update_event(
         "end_time": end_dt.strftime("%H:%M"),
         "event_id": event["event_id"],
     }
+
+
+@mcp.tool()
+def create_event(
+    ctx: Context,
+    title: str,
+    start_time: str,
+    end_time: str,
+    reminder_mins: int = 5,
+    reminder_method: str = "popup",
+) -> dict:
+    """
+    Create a new calendar event.
+
+    Args:
+        title: The title of the event.
+        start_time: The start time of the event in RFC3339 format.
+        end_time: The end time of the event in RFC3339 format.
+        reminder_mins: Minutes before the event to send a reminder (default 5).
+        reminder_method: Reminder method, e.g. "popup" or "email" (default "popup").
+
+    Returns:
+        A dictionary containing the newly created event's title, start time (HH:MM),
+        end time (HH:MM), and ID.
+    """
+    service = ctx.lifespan_context["service"]
+
+    event_id, error = gc_create_event(
+        service=service,
+        title=title,
+        start_time=start_time,
+        end_time=end_time,
+        reminder_mins=reminder_mins,
+        reminder_method=reminder_method,
+    )
+
+    if error:
+        raise ToolError(error)
+
+    event, error = gc_get_event(
+        service=service,
+        event_id=event_id,
+    )
+
+    if error:
+        raise ToolError(error)
+
+    if not event:
+        raise ToolError("Event not found after creation")
+
+    start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
+    end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
+
+    return {
+        "title": event["title"],
+        "start_time": start_dt.strftime("%H:%M"),
+        "end_time": end_dt.strftime("%H:%M"),
+        "event_id": event["event_id"],
+    }
+
+
+@mcp.tool()
+def get_event(
+    ctx: Context,
+    event_id: str,
+) -> dict:
+    """
+    Get details of a calendar event by its ID.
+
+    Args:
+        event_id: The ID of the event to retrieve.
+
+    Returns:
+        A dictionary containing the title, start time (HH:MM),
+        end time (HH:MM), and event ID.
+    """
+    service = ctx.lifespan_context["service"]
+
+    event, error = gc_get_event(
+        service=service,
+        event_id=event_id,
+    )
+
+    if error:
+        raise ToolError(error)
+
+    if not event:
+        raise ToolError("Event not found")
+
+    start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
+    end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
+
+    return {
+        "title": event["title"],
+        "start_time": start_dt.strftime("%H:%M"),
+        "end_time": end_dt.strftime("%H:%M"),
+        "event_id": event["event_id"],
+    }
+
+
+@mcp.tool()
+def delete_event(
+    ctx: Context,
+    event_id: str,
+) -> None:
+    """
+    Delete a calendar event by its ID.
+
+    Args:
+        event_id: The ID of the event to delete.
+
+    Returns:
+        None on success, or raises a ToolError if an error occurred.
+    """
+    service = ctx.lifespan_context["service"]
+
+    error = gc_delete_event(
+        service=service,
+        event_id=event_id,
+    )
+
+    if error:
+        raise ToolError(error)
 
 
 if __name__ == "__main__":
