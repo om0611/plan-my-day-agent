@@ -24,8 +24,12 @@ def parse_utc_offset(utc_offset: str) -> datetime.timezone:
     clean = offset_str.replace(":", "")
     sign = -1 if clean.startswith("-") else 1
     digits = clean.lstrip("+-")
+    if not digits or not digits.isdigit():
+        raise ValueError(f"Invalid offset format: '{utc_offset}'")
     hours = int(digits[:2]) if len(digits) >= 2 else int(digits)
     minutes = int(digits[2:4]) if len(digits) >= 4 else 0
+    if hours > 23 or minutes > 59:
+        raise ValueError(f"Offset out of range: '{utc_offset}'")
     return datetime.timezone(datetime.timedelta(hours=sign * hours, minutes=sign * minutes))
 
 
@@ -101,8 +105,15 @@ def list_day(
 
     try:
         tz = parse_utc_offset(utc_offset)
-        d = datetime.date.fromisoformat(date)
+    except Exception as e:
+        raise ToolError(e)
 
+    try:
+        d = datetime.date.fromisoformat(date)
+    except Exception as e:
+        raise ToolError(f"Invalid date '{date}'. Expected YYYY-MM-DD format: {e}")
+
+    try:
         time_min = datetime.datetime.combine(
             d, datetime.time.min, tzinfo=tz
         ).isoformat()
