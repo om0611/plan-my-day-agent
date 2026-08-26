@@ -6,7 +6,7 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain.agents import create_agent
 from langchain_ollama import ChatOllama
 
-from date_tools import get_today_date
+from date_tools import format_to_rfc3339, get_datetime_context
 
 load_dotenv()
 
@@ -38,7 +38,8 @@ async def main():
     tools.extend(mcp_tools)
     
     # Add custom date tools
-    tools.append(get_today_date)
+    tools.append(get_datetime_context)
+    tools.append(format_to_rfc3339)
 
     # Create agent
     agent = create_agent(

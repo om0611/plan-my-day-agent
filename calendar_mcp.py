@@ -1,5 +1,4 @@
 import datetime
-from zoneinfo import ZoneInfo
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
@@ -15,7 +14,48 @@ from google_client import (
     update_event as gc_update_event,
 )
 
-TIMEZONE = ZoneInfo("America/Toronto")
+
+def parse_utc_offset(utc_offset: str) -> datetime.timezone:
+    """Parse a UTC offset string (e.g. '-0400', '-04:00', '+0530', 'Z') into datetime.timezone."""
+    offset_str = utc_offset.strip().upper()
+    if offset_str in ("Z", "UTC", "+0000", "+00:00", "-0000", "-00:00"):
+        return datetime.timezone.utc
+
+    clean = offset_str.replace(":", "")
+    sign = -1 if clean.startswith("-") else 1
+    digits = clean.lstrip("+-")
+    hours = int(digits[:2]) if len(digits) >= 2 else int(digits)
+    minutes = int(digits[2:4]) if len(digits) >= 4 else 0
+    return datetime.timezone(datetime.timedelta(hours=sign * hours, minutes=sign * minutes))
+
+
+def format_event(event: dict) -> dict:
+    """Safely format an event dictionary, handling both timed and all-day events."""
+    start = event.get("start_time") or {}
+    end = event.get("end_time") or {}
+
+    if "dateTime" in start and start["dateTime"]:
+        start_dt = datetime.datetime.fromisoformat(start["dateTime"])
+        start_str = start_dt.strftime("%Y-%m-%d %H:%M")
+    elif "date" in start and start["date"]:
+        start_str = f"{start['date']} (all-day)"
+    else:
+        start_str = "N/A"
+
+    if "dateTime" in end and end["dateTime"]:
+        end_dt = datetime.datetime.fromisoformat(end["dateTime"])
+        end_str = end_dt.strftime("%Y-%m-%d %H:%M")
+    elif "date" in end and end["date"]:
+        end_str = f"{end['date']} (all-day)"
+    else:
+        end_str = "N/A"
+
+    return {
+        "title": event.get("title") or "(No title)",
+        "start_time": start_str,
+        "end_time": end_str,
+        "event_id": event.get("event_id"),
+    }
 
 
 @lifespan
@@ -42,24 +82,28 @@ mcp = FastMCP("calendar", lifespan=calendar_lifespan)
 def list_day(
     ctx: Context,
     date: datetime.date,
+    utc_offset: str,
 ) -> list[dict]:
     """
     List all events for a given date.
 
     Args:
         date: The date to list events for.
+        utc_offset: The user's UTC offset in ±HHMM or ±HH:MM format (e.g. "-0400", "-04:00").
 
     Returns:
         A list of events. Each event is a dictionary containing the title, 
-        start time (HH:MM), end time (HH:MM), and event ID.
+        start time (YYYY-MM-DD HH:MM), end time (YYYY-MM-DD HH:MM), and event ID.
     """
     service = ctx.lifespan_context["service"]
 
+    tz = parse_utc_offset(utc_offset)
+
     time_min = datetime.datetime.combine(
-        date, datetime.time.min, tzinfo=TIMEZONE
+        date, datetime.time.min, tzinfo=tz
     ).isoformat()
     time_max = datetime.datetime.combine(
-        date, datetime.time.max, tzinfo=TIMEZONE
+        date, datetime.time.max, tzinfo=tz
     ).isoformat()
 
     events, error = gc_list_events(service, timeMax=time_max, timeMin=time_min)
@@ -67,19 +111,7 @@ def list_day(
     if error:
         raise ToolError(error)
 
-    results = []
-    for event in events:
-        start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
-        end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
-
-        results.append({
-            "title": event["title"],
-            "start_time": start_dt.strftime("%H:%M"),
-            "end_time": end_dt.strftime("%H:%M"),
-            "event_id": event["event_id"],
-        })
-
-    return results
+    return [format_event(event) for event in events]
 
 
 @mcp.tool()
@@ -98,14 +130,14 @@ def update_event(
     Args:
         event_id: The ID of the event to update.
         title: Optional new title for the event.
-        start_time: Optional new start time in RFC3339 format.
-        end_time: Optional new end time in RFC3339 format.
+        start_time: Optional new start time in RFC3339 format (e.g. "2026-08-24T14:30:00-04:00").
+        end_time: Optional new end time in RFC3339 format (e.g. "2026-08-24T15:30:00-04:00").
         reminder_mins: Optional reminder lead time in minutes.
         reminder_method: Optional reminder method (e.g. "popup", "email").
 
     Returns:
-        A dictionary containing the title, start time (HH:MM),
-        end time (HH:MM), and event ID.
+        A dictionary containing the title, start time (YYYY-MM-DD HH:MM),
+        end time (YYYY-MM-DD HH:MM), and event ID of the updated event.
     """
     service = ctx.lifespan_context["service"]
 
@@ -133,15 +165,7 @@ def update_event(
     if not event:
         raise ToolError("Event not found after update")
 
-    start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
-    end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
-
-    return {
-        "title": event["title"],
-        "start_time": start_dt.strftime("%H:%M"),
-        "end_time": end_dt.strftime("%H:%M"),
-        "event_id": event["event_id"],
-    }
+    return format_event(event)
 
 
 @mcp.tool()
@@ -158,14 +182,14 @@ def create_event(
 
     Args:
         title: The title of the event.
-        start_time: The start time of the event in RFC3339 format.
-        end_time: The end time of the event in RFC3339 format.
+        start_time: The start time of the event in RFC3339 format (e.g. "2026-08-24T14:30:00-04:00").
+        end_time: The end time of the event in RFC3339 format (e.g. "2026-08-24T15:30:00-04:00").
         reminder_mins: Minutes before the event to send a reminder (default 5).
         reminder_method: Reminder method, e.g. "popup" or "email" (default "popup").
 
     Returns:
-        A dictionary containing the newly created event's title, start time (HH:MM),
-        end time (HH:MM), and ID.
+        A dictionary containing the title, start time (YYYY-MM-DD HH:MM),
+        end time (YYYY-MM-DD HH:MM), and event ID of the created event.
     """
     service = ctx.lifespan_context["service"]
 
@@ -192,15 +216,7 @@ def create_event(
     if not event:
         raise ToolError("Event not found after creation")
 
-    start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
-    end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
-
-    return {
-        "title": event["title"],
-        "start_time": start_dt.strftime("%H:%M"),
-        "end_time": end_dt.strftime("%H:%M"),
-        "event_id": event["event_id"],
-    }
+    return format_event(event)
 
 
 @mcp.tool()
@@ -215,8 +231,8 @@ def get_event(
         event_id: The ID of the event to retrieve.
 
     Returns:
-        A dictionary containing the title, start time (HH:MM),
-        end time (HH:MM), and event ID.
+        A dictionary containing the title, start time (YYYY-MM-DD HH:MM),
+        end time (YYYY-MM-DD HH:MM), and event ID of the event.
     """
     service = ctx.lifespan_context["service"]
 
@@ -231,15 +247,7 @@ def get_event(
     if not event:
         raise ToolError("Event not found")
 
-    start_dt = datetime.datetime.fromisoformat(event["start_time"]["dateTime"])
-    end_dt = datetime.datetime.fromisoformat(event["end_time"]["dateTime"])
-
-    return {
-        "title": event["title"],
-        "start_time": start_dt.strftime("%H:%M"),
-        "end_time": end_dt.strftime("%H:%M"),
-        "event_id": event["event_id"],
-    }
+    return format_event(event)
 
 
 @mcp.tool()
