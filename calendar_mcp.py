@@ -62,8 +62,10 @@ def format_event(event: dict) -> dict:
 async def calendar_lifespan(server):
     print("Starting calendar service...")
     creds = get_credentials()
-    service, error = build_calendar_service(creds)
-    if error:
+    try:
+        service = build_calendar_service(creds)
+    except Exception as e:
+        print(f"Failed to build calendar service: {e}")
         return
 
     try:
@@ -97,22 +99,21 @@ def list_day(
     """
     service = ctx.lifespan_context["service"]
 
-    tz = parse_utc_offset(utc_offset)
-    d = datetime.date.fromisoformat(date)
+    try:
+        tz = parse_utc_offset(utc_offset)
+        d = datetime.date.fromisoformat(date)
 
-    time_min = datetime.datetime.combine(
-        d, datetime.time.min, tzinfo=tz
-    ).isoformat()
-    time_max = datetime.datetime.combine(
-        d, datetime.time.max, tzinfo=tz
-    ).isoformat()
+        time_min = datetime.datetime.combine(
+            d, datetime.time.min, tzinfo=tz
+        ).isoformat()
+        time_max = datetime.datetime.combine(
+            d, datetime.time.max, tzinfo=tz
+        ).isoformat()
 
-    events, error = gc_list_events(service, timeMax=time_max, timeMin=time_min)
-
-    if error:
-        raise ToolError(error)
-
-    return [format_event(event) for event in events]
+        events = gc_list_events(service, timeMax=time_max, timeMin=time_min)
+        return [format_event(event) for event in events]
+    except Exception as e:
+        raise ToolError(f"Failed to list events: {e}")
 
 
 @mcp.tool()
@@ -142,31 +143,23 @@ def update_event(
     """
     service = ctx.lifespan_context["service"]
 
-    error = gc_update_event(
-        service=service,
-        event_id=event_id,
-        title=title,
-        start_time=start_time,
-        end_time=end_time,
-        reminder_mins=reminder_mins,
-        reminder_method=reminder_method,
-    )
-
-    if error:
-        raise ToolError(error)
-
-    event, error = gc_get_event(
-        service=service,
-        event_id=event_id,
-    )
-
-    if error:
-        raise ToolError(error)
-
-    if not event:
-        raise ToolError("Event not found after update")
-
-    return format_event(event)
+    try:
+        gc_update_event(
+            service=service,
+            event_id=event_id,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            reminder_mins=reminder_mins,
+            reminder_method=reminder_method,
+        )
+        event = gc_get_event(
+            service=service,
+            event_id=event_id,
+        )
+        return format_event(event)
+    except Exception as e:
+        raise ToolError(f"Failed to update event: {e}")
 
 
 @mcp.tool()
@@ -194,30 +187,22 @@ def create_event(
     """
     service = ctx.lifespan_context["service"]
 
-    event_id, error = gc_create_event(
-        service=service,
-        title=title,
-        start_time=start_time,
-        end_time=end_time,
-        reminder_mins=reminder_mins,
-        reminder_method=reminder_method,
-    )
-
-    if error:
-        raise ToolError(error)
-
-    event, error = gc_get_event(
-        service=service,
-        event_id=event_id,
-    )
-
-    if error:
-        raise ToolError(error)
-
-    if not event:
-        raise ToolError("Event not found after creation")
-
-    return format_event(event)
+    try:
+        event_id = gc_create_event(
+            service=service,
+            title=title,
+            start_time=start_time,
+            end_time=end_time,
+            reminder_mins=reminder_mins,
+            reminder_method=reminder_method,
+        )
+        event = gc_get_event(
+            service=service,
+            event_id=event_id,
+        )
+        return format_event(event)
+    except Exception as e:
+        raise ToolError(f"Failed to create event: {e}")
 
 
 @mcp.tool()
@@ -237,18 +222,14 @@ def get_event(
     """
     service = ctx.lifespan_context["service"]
 
-    event, error = gc_get_event(
-        service=service,
-        event_id=event_id,
-    )
-
-    if error:
-        raise ToolError(error)
-
-    if not event:
-        raise ToolError("Event not found")
-
-    return format_event(event)
+    try:
+        event = gc_get_event(
+            service=service,
+            event_id=event_id,
+        )
+        return format_event(event)
+    except Exception as e:
+        raise ToolError(f"Failed to get event: {e}")
 
 
 @mcp.tool()
@@ -267,13 +248,13 @@ def delete_event(
     """
     service = ctx.lifespan_context["service"]
 
-    error = gc_delete_event(
-        service=service,
-        event_id=event_id,
-    )
-
-    if error:
-        raise ToolError(error)
+    try:
+        gc_delete_event(
+            service=service,
+            event_id=event_id,
+        )
+    except Exception as e:
+        raise ToolError(f"Failed to delete event: {e}")
 
 
 if __name__ == "__main__":

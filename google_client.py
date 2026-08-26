@@ -4,21 +4,17 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 
-def build_calendar_service(creds: Credentials) -> tuple[Any | None, str | None]:
+def build_calendar_service(creds: Credentials) -> Any:
     """
     Build and return a Google Calendar API resource object.
 
+    Args:
+        creds: Google OAuth2 Credentials object.
+
     Returns:
-        - A Resource object with methods for interacting with the
-            Google Calendar API. None if an error occured.
-        - An error message if an error occured. None otherwise.
+        A Resource object with methods for interacting with the Google Calendar API.
     """
-    try:
-        service = build("calendar", "v3", credentials=creds)
-        return service, None
-    except Exception as e:
-        print(f"An error occurred while building the calendar service: {e}")
-        return None, str(e)
+    return build("calendar", "v3", credentials=creds)
 
 
 def create_event(
@@ -29,7 +25,7 @@ def create_event(
     reminder_mins: int = 5,
     reminder_method: str = "popup",
     calendar_id: str = "primary",
-) -> tuple[str | None, str | None]:
+) -> str:
     """
     Create a new event in the specified Google Calendar.
 
@@ -46,8 +42,7 @@ def create_event(
             "primary").
 
     Returns:
-        - The ID of the created event if successful. None otherwise.
-        - An error message if an error occured. None otherwise.
+        The ID of the created event.
     """
     body = {
         "summary": title,
@@ -58,21 +53,16 @@ def create_event(
             "overrides": [{"method": reminder_method, "minutes": reminder_mins}],
         },
     }
-    try:
-        response = service.events().insert(calendarId=calendar_id, body=body).execute()
-        print("Event created successfully.")
-        return response.get("id"), None
-
-    except Exception as e:
-        print(f"An error occurred while creating the event: {e}")
-        return None, str(e)
+    response = service.events().insert(calendarId=calendar_id, body=body).execute()
+    print("Event created successfully.")
+    return response["id"]
 
 
 def delete_event(
     service: Any,
     event_id: str,
     calendar_id: str = "primary",
-) -> str | None:
+) -> None:
     """
     Delete an event from the specified Google Calendar.
 
@@ -81,18 +71,9 @@ def delete_event(
         event_id: The ID of the event to delete.
         calendar_id: The ID of the calendar to delete the event from (default is
             "primary").
-
-    Returns:
-        - An error message if an error occured. None otherwise.
     """
-    try:
-        service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
-        print("Event deleted successfully.")
-        return None
-
-    except Exception as e:
-        print(f"An error occurred while deleting the event: {e}")
-        return str(e)
+    service.events().delete(calendarId=calendar_id, eventId=event_id).execute()
+    print("Event deleted successfully.")
 
 
 def update_event(
@@ -104,7 +85,7 @@ def update_event(
     reminder_mins: int | None = None,
     reminder_method: str | None = None,
     calendar_id: str = "primary",
-) -> str | None:
+) -> None:
     """
     Update an existing event in the specified Google Calendar with partial fields.
 
@@ -117,9 +98,6 @@ def update_event(
         reminder_mins: Optional reminder lead time in minutes.
         reminder_method: Optional reminder method (e.g. "popup", "email").
         calendar_id: The ID of the calendar containing the event (default "primary").
-
-    Returns:
-        - An error message if an error occured. None otherwise.
     """
     body: dict[str, Any] = {}
 
@@ -145,25 +123,19 @@ def update_event(
 
     if not body:
         print("No fields provided to update.")
-        return None
+        return
 
-    try:
-        service.events().patch(
-            calendarId=calendar_id, eventId=event_id, body=body
-        ).execute()
-        print("Event updated successfully.")
-        return None
-
-    except Exception as e:
-        print(f"An error occurred while updating the event: {e}")
-        return str(e)
+    service.events().patch(
+        calendarId=calendar_id, eventId=event_id, body=body
+    ).execute()
+    print("Event updated successfully.")
 
 
 def get_event(
     service: Any,
     event_id: str,
     calendar_id: str = "primary",
-) -> tuple[dict[str, Any] | None, str | None]:
+) -> dict[str, Any]:
     """
     Get details of the specified event from the specified Google Calendar.
 
@@ -173,24 +145,16 @@ def get_event(
         calendar_id: The ID of the calendar containing the event (default "primary").
 
     Returns:
-        - The event details as a dictionary if found. None otherwise.
-        - An error message if an error occured. None otherwise.
+        The event details as a dictionary.
     """
-    try:
-        event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
-        
-        event_details = {
-            "title": event.get("summary"),
-            "start_time": event.get("start"),
-            "end_time": event.get("end"),
-            "event_id": event.get("id"),
-        }
+    event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
 
-        return event_details, None
-
-    except Exception as e:
-        print(f"An error occurred while getting the event details: {e}")
-        return None, str(e)
+    return {
+        "title": event.get("summary"),
+        "start_time": event.get("start"),
+        "end_time": event.get("end"),
+        "event_id": event.get("id"),
+    }
 
 
 def list_events(
@@ -198,7 +162,7 @@ def list_events(
     timeMax: str,
     timeMin: str,
     calendar_id: str = "primary",
-) -> tuple[list[dict[str, Any]] | None, str | None]:
+) -> list[dict[str, Any]]:
     """
     List events from the specified Google Calendar within the given time range.
 
@@ -209,42 +173,35 @@ def list_events(
         calendar_id: The ID of the calendar to list events from (default "primary").
 
     Returns:
-        - A list of events from the specified calendar. None if an error occured.
-        - An error message if an error occured. None otherwise.
+        A list of events from the specified calendar.
     """
-    try:
-        response = service.events().list(
-            calendarId=calendar_id,
-            timeMin=timeMin,
-            timeMax=timeMax,
-            singleEvents=True,
-            orderBy="startTime",
-        ).execute()
+    response = service.events().list(
+        calendarId=calendar_id,
+        timeMin=timeMin,
+        timeMax=timeMax,
+        singleEvents=True,
+        orderBy="startTime",
+    ).execute()
 
-        events = response.get("items")
-        if not events:
-            print("No events found.")
-            return [], None
+    events = response.get("items")
+    if not events:
+        print("No events found.")
+        return []
 
-        output_events = []
+    output_events = []
+    for event in events:
+        title = event.get("summary")
+        start_time = event.get("start")
+        end_time = event.get("end")
+        event_id = event.get("id")
 
-        for event in events:
-            title = event.get("summary")
-            start_time = event.get("start")
-            end_time = event.get("end")
-            event_id = event.get("id")
+        output_events.append(
+            {
+                "title": title,
+                "start_time": start_time,
+                "end_time": end_time,
+                "event_id": event_id,
+            }
+        )
 
-            output_events.append(
-                {
-                    "title": title,
-                    "start_time": start_time,
-                    "end_time": end_time,
-                    "event_id": event_id,
-                }
-            )
-
-        return output_events, None
-
-    except Exception as e:
-        print(f"An error occurred while listing events: {e}")
-        return None, str(e)
+    return output_events
