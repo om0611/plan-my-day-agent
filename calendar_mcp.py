@@ -81,14 +81,14 @@ mcp = FastMCP("calendar", lifespan=calendar_lifespan)
 @mcp.tool()
 def list_day(
     ctx: Context,
-    date: datetime.date,
+    date: str,
     utc_offset: str,
 ) -> list[dict]:
     """
     List all events for a given date.
 
     Args:
-        date: The date to list events for.
+        date: The date to list events for in YYYY-MM-DD format (e.g. "2026-08-24").
         utc_offset: The user's UTC offset in ±HHMM or ±HH:MM format (e.g. "-0400", "-04:00").
 
     Returns:
@@ -98,12 +98,13 @@ def list_day(
     service = ctx.lifespan_context["service"]
 
     tz = parse_utc_offset(utc_offset)
+    d = datetime.date.fromisoformat(date)
 
     time_min = datetime.datetime.combine(
-        date, datetime.time.min, tzinfo=tz
+        d, datetime.time.min, tzinfo=tz
     ).isoformat()
     time_max = datetime.datetime.combine(
-        date, datetime.time.max, tzinfo=tz
+        d, datetime.time.max, tzinfo=tz
     ).isoformat()
 
     events, error = gc_list_events(service, timeMax=time_max, timeMin=time_min)
