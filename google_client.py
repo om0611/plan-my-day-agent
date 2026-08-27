@@ -17,6 +17,16 @@ def build_calendar_service(creds: Credentials) -> Any:
     return build("calendar", "v3", credentials=creds)
 
 
+def format_raw_event(event: dict[str, Any]) -> dict[str, Any]:
+    """Extract the common fields from a raw Google Calendar API event object."""
+    return {
+        "title": event.get("summary"),
+        "start_time": event.get("start"),
+        "end_time": event.get("end"),
+        "event_id": event.get("id"),
+    }
+
+
 def create_event(
     service: Any,
     title: str,
@@ -148,13 +158,7 @@ def get_event(
         The event details as a dictionary.
     """
     event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
-
-    return {
-        "title": event.get("summary"),
-        "start_time": event.get("start"),
-        "end_time": event.get("end"),
-        "event_id": event.get("id"),
-    }
+    return format_raw_event(event)
 
 
 def list_events(
@@ -188,20 +192,4 @@ def list_events(
         print("No events found.")
         return []
 
-    output_events = []
-    for event in events:
-        title = event.get("summary")
-        start_time = event.get("start")
-        end_time = event.get("end")
-        event_id = event.get("id")
-
-        output_events.append(
-            {
-                "title": title,
-                "start_time": start_time,
-                "end_time": end_time,
-                "event_id": event_id,
-            }
-        )
-
-    return output_events
+    return [format_raw_event(event) for event in events]
