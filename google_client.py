@@ -17,6 +17,20 @@ def build_calendar_service(creds: Credentials) -> Any:
     return build("calendar", "v3", credentials=creds)
 
 
+def get_user_timezone(service: Any) -> str:
+    """Fetch the user's timezone from Google Calendar settings.
+
+    Returns an IANA timezone string (e.g. 'America/Toronto').
+    Falls back to calendars.get('primary') if settings.get fails.
+    """
+    try:
+        setting = service.settings().get(setting="timezone").execute()
+        return setting["value"]
+    except Exception:
+        calendar = service.calendars().get(calendarId="primary").execute()
+        return calendar["timeZone"]
+
+
 def format_raw_event(event: dict[str, Any]) -> dict[str, Any]:
     """Extract the common fields from a raw Google Calendar API event object."""
     return {

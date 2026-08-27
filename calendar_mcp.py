@@ -1,16 +1,17 @@
 import datetime
+from zoneinfo import ZoneInfo
 
 from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
 
 from auth import get_credentials
-from date_helpers import parse_utc_offset
 from google_client import (
     build_calendar_service,
     create_event as gc_create_event,
     delete_event as gc_delete_event,
     get_event as gc_get_event,
+    get_user_timezone,
     list_events as gc_list_events,
     update_event as gc_update_event,
 )
@@ -51,6 +52,8 @@ async def calendar_lifespan(server):
     creds = get_credentials()
     try:
         service = build_calendar_service(creds)
+        timezone = get_user_timezone(service)
+        print(f"User timezone: {timezone}")
     except Exception as e:
         print(f"Failed to build calendar service: {e}")
         return
@@ -58,6 +61,7 @@ async def calendar_lifespan(server):
     try:
         yield {
             "service": service,
+            "timezone": timezone,
         }
     finally:
         print("Shutting down calendar service...")
@@ -68,17 +72,25 @@ mcp = FastMCP("calendar", lifespan=calendar_lifespan)
 
 
 @mcp.tool()
+def get_timezone(ctx: Context) -> str:
+    """
+    Get the user's timezone as an IANA timezone string (e.g. 'America/Toronto').
+    """
+    return ctx.lifespan_context["timezone"]
+
+
+@mcp.tool()
 def list_day(
     ctx: Context,
     date: str,
-    utc_offset: str,
+    timezone: str,
 ) -> list[dict]:
     """
     List all events for a given date.
 
     Args:
         date: The date to list events for in YYYY-MM-DD format (e.g. "2026-08-24").
-        utc_offset: The user's UTC offset in ±HHMM or ±HH:MM format (e.g. "-0400", "-04:00").
+        timezone: The user's IANA timezone string (e.g. "America/Toronto").
 
     Returns:
         A list of events. Each event is a dictionary containing the title, 
@@ -87,14 +99,14 @@ def list_day(
     service = ctx.lifespan_context["service"]
 
     try:
-        tz = parse_utc_offset(utc_offset)
+        tz = ZoneInfo(timezone)
     except Exception as e:
-        raise ToolError(e)
+        raise ToolError(f"Invalid timezone '{timezone}': {e}") from e
 
     try:
         d = datetime.date.fromisoformat(date)
     except Exception as e:
-        raise ToolError(f"Invalid date '{date}'. Expected YYYY-MM-DD format: {e}")
+        raise ToolError(f"Invalid date '{date}'. Expected YYYY-MM-DD format: {e}") from e
 
     try:
         time_min = datetime.datetime.combine(
@@ -107,7 +119,7 @@ def list_day(
         events = gc_list_events(service, timeMax=time_max, timeMin=time_min)
         return [format_event(event) for event in events]
     except Exception as e:
-        raise ToolError(f"Failed to list events: {e}")
+        raise ToolError(f"Failed to list events: {e}") from e
 
 
 @mcp.tool()
