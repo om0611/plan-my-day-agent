@@ -11,6 +11,17 @@ from date_tools import format_to_rfc3339, get_datetime_context
 load_dotenv()
 
 
+SYSTEM_PROMPT = \
+"""
+You are a day planner agent. You help users plan, organize, and manage their daily 
+schedule and calendar events.
+
+CRITICAL: You must always obtain the current date and time context using the 
+`get_datetime_context` tool before doing anything else to stay current with the present
+day.
+"""
+
+
 async def main():
     model = ChatOllama(
         model="gemma4:31b-cloud",
@@ -45,6 +56,7 @@ async def main():
     agent = create_agent(
         model,
         tools,
+        system_prompt=SYSTEM_PROMPT,
     )
 
     user_input = input("Enter your prompt: ")
