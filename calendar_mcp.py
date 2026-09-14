@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 from zoneinfo import ZoneInfo
 
@@ -58,10 +59,13 @@ async def calendar_lifespan(server):
         print(f"Failed to build calendar service: {e}")
         return
 
+    lock = asyncio.Lock()
+
     try:
         yield {
             "service": service,
             "timezone": timezone,
+            "lock": lock,
         }
     finally:
         print("Shutting down calendar service...")
@@ -80,7 +84,7 @@ def get_timezone(ctx: Context) -> str:
 
 
 @mcp.tool()
-def list_day(
+async def list_day(
     ctx: Context,
     date: str,
     timezone: str,
@@ -97,16 +101,17 @@ def list_day(
         start time (YYYY-MM-DD HH:MM), end time (YYYY-MM-DD HH:MM), and event ID.
     """
     service = ctx.lifespan_context["service"]
+    lock: asyncio.Lock = ctx.lifespan_context["lock"]
 
     try:
         tz = ZoneInfo(timezone)
     except Exception as e:
-        raise ToolError(f"Invalid timezone '{timezone}': {e}") from e
+        raise ToolError(f"Invalid timezone '{timezone}'") from e
 
     try:
         d = datetime.date.fromisoformat(date)
     except Exception as e:
-        raise ToolError(f"Invalid date '{date}'. Expected YYYY-MM-DD format: {e}") from e
+        raise ToolError(f"Invalid date '{date}'. Expected YYYY-MM-DD format") from e
 
     try:
         time_min = datetime.datetime.combine(
@@ -116,14 +121,15 @@ def list_day(
             d, datetime.time.max, tzinfo=tz
         ).isoformat()
 
-        events = gc_list_events(service, timeMax=time_max, timeMin=time_min)
+        async with lock:
+            events = gc_list_events(service, timeMax=time_max, timeMin=time_min)
         return [format_event(event) for event in events]
     except Exception as e:
-        raise ToolError(f"Failed to list events: {e}") from e
+        raise ToolError("Failed to list events") from e
 
 
 @mcp.tool()
-def update_event(
+async def update_event(
     ctx: Context,
     event_id: str,
     title: str | None = None,
@@ -148,28 +154,30 @@ def update_event(
         end time (YYYY-MM-DD HH:MM), and event ID of the updated event.
     """
     service = ctx.lifespan_context["service"]
+    lock: asyncio.Lock = ctx.lifespan_context["lock"]
 
     try:
-        gc_update_event(
-            service=service,
-            event_id=event_id,
-            title=title,
-            start_time=start_time,
-            end_time=end_time,
-            reminder_mins=reminder_mins,
-            reminder_method=reminder_method,
-        )
-        event = gc_get_event(
-            service=service,
-            event_id=event_id,
-        )
+        async with lock:
+            gc_update_event(
+                service=service,
+                event_id=event_id,
+                title=title,
+                start_time=start_time,
+                end_time=end_time,
+                reminder_mins=reminder_mins,
+                reminder_method=reminder_method,
+            )
+            event = gc_get_event(
+                service=service,
+                event_id=event_id,
+            )
         return format_event(event)
     except Exception as e:
-        raise ToolError(f"Failed to update event: {e}")
+        raise ToolError("Failed to update event") from e
 
 
 @mcp.tool()
-def create_event(
+async def create_event(
     ctx: Context,
     title: str,
     start_time: str,
@@ -192,27 +200,29 @@ def create_event(
         end time (YYYY-MM-DD HH:MM), and event ID of the created event.
     """
     service = ctx.lifespan_context["service"]
+    lock: asyncio.Lock = ctx.lifespan_context["lock"]
 
     try:
-        event_id = gc_create_event(
-            service=service,
-            title=title,
-            start_time=start_time,
-            end_time=end_time,
-            reminder_mins=reminder_mins,
-            reminder_method=reminder_method,
-        )
-        event = gc_get_event(
-            service=service,
-            event_id=event_id,
-        )
+        async with lock:
+            event_id = gc_create_event(
+                service=service,
+                title=title,
+                start_time=start_time,
+                end_time=end_time,
+                reminder_mins=reminder_mins,
+                reminder_method=reminder_method,
+            )
+            event = gc_get_event(
+                service=service,
+                event_id=event_id,
+            )
         return format_event(event)
     except Exception as e:
-        raise ToolError(f"Failed to create event: {e}")
+        raise ToolError("Failed to create event") from e
 
 
 @mcp.tool()
-def get_event(
+async def get_event(
     ctx: Context,
     event_id: str,
 ) -> dict:
@@ -227,19 +237,21 @@ def get_event(
         end time (YYYY-MM-DD HH:MM), and event ID of the event.
     """
     service = ctx.lifespan_context["service"]
+    lock: asyncio.Lock = ctx.lifespan_context["lock"]
 
     try:
-        event = gc_get_event(
-            service=service,
-            event_id=event_id,
-        )
+        async with lock:
+            event = gc_get_event(
+                service=service,
+                event_id=event_id,
+            )
         return format_event(event)
     except Exception as e:
-        raise ToolError(f"Failed to get event: {e}")
+        raise ToolError("Failed to get event") from e
 
 
 @mcp.tool()
-def delete_event(
+async def delete_event(
     ctx: Context,
     event_id: str,
 ) -> None:
@@ -253,14 +265,16 @@ def delete_event(
         None on success, or raises a ToolError if an error occurred.
     """
     service = ctx.lifespan_context["service"]
+    lock: asyncio.Lock = ctx.lifespan_context["lock"]
 
     try:
-        gc_delete_event(
-            service=service,
-            event_id=event_id,
-        )
+        async with lock:
+            gc_delete_event(
+                service=service,
+                event_id=event_id,
+            )
     except Exception as e:
-        raise ToolError(f"Failed to delete event: {e}")
+        raise ToolError("Failed to delete event") from e
 
 
 if __name__ == "__main__":
