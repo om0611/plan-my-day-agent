@@ -48,6 +48,7 @@ async def main():
         }
     )
 
+    # Get tools from Calendar MCP
     try:
         mcp_tools = await client.get_tools()
         tools.extend(mcp_tools)
@@ -67,6 +68,7 @@ async def main():
         system_prompt=SYSTEM_PROMPT,
     )
 
+    # Conversation loop
     while True:
         user_input = get_user_input()
         if user_input is None or user_input.lower() in ("q", "quit", "exit"):
