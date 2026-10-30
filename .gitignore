@@ -11,3 +11,6 @@ scratch/
 
 # Ruff
 .ruff_cache/
+
+# Database
+schedule.db
