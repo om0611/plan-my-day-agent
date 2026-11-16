@@ -60,3 +60,5 @@ def format_to_rfc3339(date: str, time: str, timezone: str) -> str:
     dt = datetime.datetime.combine(d, t, tzinfo=tz)
     return dt.isoformat()
 
+
+DATE_TOOLS = [get_datetime_context, format_to_rfc3339]

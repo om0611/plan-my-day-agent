@@ -5,7 +5,7 @@ from langchain.agents import create_agent
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_ollama import ChatOllama
 
-from date_tools import format_to_rfc3339, get_datetime_context
+from date_tools import DATE_TOOLS
 from ui.stream_handler import handle_stream
 from ui.visualizer import (
     display_error,
@@ -29,38 +29,45 @@ For general conversation unrelated to the calendar, you do not need to call it.
 """
 
 
-async def main():
-    display_welcome_banner()
-
-    model = ChatOllama(
-        model="gemma4:31b-cloud",
+def get_ollama_llm(model_id: str) -> ChatOllama:
+    """Initialize Ollama LLM"""
+    return ChatOllama(
+        model=model_id,
         base_url="https://ollama.com",
         temperature=0,
     )
-    tools = []
 
-    # Connect to Calendar MCP Client
+
+async def add_calendar_mcp_tools(url: str, tools: list) -> None:
+    """Add calendar MCP tools to the given tools list"""
     client = MultiServerMCPClient(
         {
             "calendar": {
                 "transport": "http",
-                "url": "http://localhost:8000/mcp",
+                "url": url,
             },
         }
     )
 
-    # Get tools from Calendar MCP
     try:
         mcp_tools = await client.get_tools()
         tools.extend(mcp_tools)
         display_success("Connected to Calendar MCP server.")
     except Exception as e:
         display_error(f"MCP server unreachable: {e}")
-        return
 
-    # Add custom date tools
-    tools.append(get_datetime_context)
-    tools.append(format_to_rfc3339)
+
+async def main():
+    """Main function to run the agent"""
+    display_welcome_banner()
+
+    # Connect to LLM
+    model = get_ollama_llm("gemma4:31b-cloud")
+    
+    # Add tools
+    tools = []
+    await add_calendar_mcp_tools("http://localhost:8000/mcp", tools)
+    tools.extend(DATE_TOOLS)
 
     # Create agent
     agent = create_agent(
