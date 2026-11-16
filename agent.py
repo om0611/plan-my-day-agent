@@ -6,8 +6,8 @@ from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_ollama import ChatOllama
 
 from date_tools import format_to_rfc3339, get_datetime_context
-from stream_handler import handle_stream
-from visualizer import (
+from ui.stream_handler import handle_stream
+from ui.visualizer import (
     display_error,
     display_goodbye,
     display_success,

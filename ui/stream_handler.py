@@ -2,7 +2,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, ToolMessage
 
-from visualizer import (
+from ui.visualizer import (
     display_agent_response,
     display_error,
     display_thought,
