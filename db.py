@@ -51,7 +51,7 @@ def init_db(conn: sqlite3.Connection):
             );
 
             CREATE TABLE IF NOT EXISTS days (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id INTEGER PRIMARY KEY,
                 day TEXT UNIQUE NOT NULL
             );
 
@@ -87,24 +87,49 @@ def init_db(conn: sqlite3.Connection):
                 cycle_id INTEGER NOT NULL,
                 position INTEGER NOT NULL,
                 label TEXT NOT NULL,
+                occurs INTEGER NOT NULL CHECK (occurs IN (0, 1)),
 
                 FOREIGN KEY (cycle_id) REFERENCES cycles(id) ON DELETE CASCADE,
                 PRIMARY KEY (cycle_id, position)
             );
+
+            CREATE TABLE IF NOT EXISTS week_schedule (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_start TEXT NOT NULL
+                    CHECK (COALESCE(strftime('%w', week_start) = '1', 0)),
+                day_id INTEGER NOT NULL,
+                activity_id INTEGER NOT NULL,
+                start_time TEXT NOT NULL,
+                end_time TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'planned'
+                    CHECK (status IN ('planned', 'done', 'skipped', 'dropped')),
+                origin TEXT NOT NULL DEFAULT 'rule'
+                    CHECK (origin IN ('rule', 'llm', 'user')),
+                locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+                google_event_id TEXT UNIQUE,
+
+                FOREIGN KEY (day_id) REFERENCES days(id) ON DELETE CASCADE,
+                FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+                CHECK (end_time > start_time),
+                UNIQUE (week_start, day_id, activity_id, start_time)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_week_schedule_week_day
+                ON week_schedule (week_start, day_id);
         """)
         conn.commit()
 
         # Initialize days table with all days of the week
         days = [
-            ("Monday",), 
-            ("Tuesday",), 
-            ("Wednesday",), 
-            ("Thursday",), 
-            ("Friday",), 
-            ("Saturday",), 
-            ("Sunday",)
+            (0, "Monday"), 
+            (1, "Tuesday"), 
+            (2, "Wednesday"), 
+            (3, "Thursday"), 
+            (4, "Friday"), 
+            (5, "Saturday"), 
+            (6, "Sunday")
         ]
-        cur.executemany("INSERT OR IGNORE INTO days (day) VALUES (?)", days)
+        cur.executemany("INSERT OR IGNORE INTO days (id, day) VALUES (?, ?)", days)
         conn.commit()
 
     except sqlite3.Error as e:
