@@ -6,8 +6,8 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from fastmcp.server.lifespan import lifespan
 
-from google.auth import get_credentials
-from google.calendar_client import (
+from google_service.auth import get_credentials
+from google_service.calendar_client import (
     build_calendar_service,
     create_event as gc_create_event,
     delete_event as gc_delete_event,
